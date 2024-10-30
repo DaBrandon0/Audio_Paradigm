@@ -15,15 +15,15 @@ while (1 == 1):
     time.sleep(2)
     winsound.Beep(sound, 1000)
     time.sleep(2)
-    if(error_rate > tf):
+    if(error_rate < tf):
         winsound.Beep(sound, 1000)
     else:
         while (sound == error_sound):
             error_sound = random.randint(100,1500)
         winsound.Beep(error_sound, 1000)
     ans = input("Did the sounds match?(y/n):")
-    if(error_rate > tf):
-        if (ans == "yes"):
+    if(error_rate < tf):
+        if (ans == "y"):
             score = score + 1
         else:
             score = score
@@ -38,7 +38,7 @@ while (1 == 1):
         if(input("Replay(y/n)?") == "y"):
             i = 0
         else:
-            quit
+            exit()
 
     
 
