@@ -2,19 +2,25 @@ import tkinter as tk
 import random 
 import os
 from playsound import playsound
+import threading
 
-ROUNDS = 10
+BLOCKS = 13
 
 def play_audio(voice, word):
     # Play the audio file
-    file_name = f"{voice}_{word}.mp3"
-    base_path = os.path.join(os.path.dirname(__file__), "Voices")
-    file_path = os.path.join("Voices", file_name)
-    playsound(file_path)
-
+    def play():
+        file_name = f"{voice}_{word}.mp3"
+        base_path = os.path.join(os.path.dirname(__file__), "Voices")
+        file_path = os.path.join("Voices", file_name)
+        playsound(file_path)
+    
+    audio_thread = threading.Thread(target=play)
+    audio_thread.start()
 class Auditory:
     def __init__(self, root):
         self.root = root
+        self.ROUNDS = 30
+        self.Block = 0
         self.root.title("Auditory Paradigm")
         self.voices = ["Man", "Woman", "Child", "Robot"]
         self.rand_voice = random.choice(self.voices)
@@ -75,11 +81,15 @@ class Auditory:
         self.start_screen()
     
     def start_screen(self):
-        self.message_label.config(state="normal")
-        self.message_label.delete("1.0", "end")
-        self.message_label.insert("end", "Press SPACE to start", "center")
-        self.message_label.config(state="disabled")
-        self.accept_start = True
+        if self.Block < BLOCKS:
+            self.ROUNDS = 30
+            self.message_label.config(state="normal")
+            self.message_label.delete("1.0", "end")
+            self.message_label.insert("end", "Press SPACE to start", "center")
+            self.message_label.config(state="disabled")
+            self.accept_start = True
+        else:
+            self.root.destroy()
     
     def count(self):
         if self.countdown > 0:
@@ -93,37 +103,38 @@ class Auditory:
             self.start_round()
     
     def start_round(self):
-        if self.round_number < ROUNDS:
+        if self.round_number < self.ROUNDS:
             self.message_label.configure(state="normal")
             self.message_label.delete("1.0", tk.END)
             self.message_label.insert(tk.END, f"Listen", "center")
             self.message_label.configure(state="disabled")
-            self.root.after(100, self.promt)
+            rand = random.randint(1, 100)
+            self.rand_voice = random.choice(self.voices)
+            self.rand_word = self.rand_voice
+            #Play correct word
+            if rand <= 25:
+                while(self.rand_voice == self.rand_word):
+                    self.rand_word = random.choice(self.voices)
+                self.accept_input = True
+                play_audio(self.rand_voice, self.rand_word)
+            else: 
+                self.countdown = 0
+                self.accept_input = True
+                play_audio(self.rand_voice, self.rand_word)
+            self.root.after(1500, self.promt)
         else:
             self.show_final()
+
     def promt(self):
-        rand = random.randint(1, 100)
-        self.rand_voice = random.choice(self.voices)
-        self.rand_word = self.rand_voice
-        #Play correct word
-        if rand <= 25:
-            while(self.rand_voice == self.rand_word):
-                self.rand_word = random.choice(self.voices)
-
-            play_audio(self.rand_voice, self.rand_word)
-        else: 
-            self.countdown = 0
-            play_audio(self.rand_voice, self.rand_word)
-
         self.message_label.config(state="normal")
         self.message_label.delete("1.0", "end")
         self.message_label.insert("end", "Matched?", "center")
         self.message_label.config(state="disabled")
-
-        self.accept_input = True
-        self.root.after(2000, self.show_blank)
+        self.root.after(1250, self.show_blank)
 
     def show_blank(self):
+        if(self.accept_input):
+            self.ROUNDS += 1
         self.accept_input = False
         self.round_number += 1
         self.message_label.configure(state="normal")
@@ -131,9 +142,9 @@ class Auditory:
         self.message_label.configure(state="disabled")
 
         #CHANGE THIS TO CHANGE THE BLANK TIME BETWEEN THE ROUNDS
-        possible_delay = [750, 1000, 1250]
+        possible_delay = [500, 750, 1000]
         random_delay = random.choice(possible_delay)
-        self.root.after(random_delay, self.start_round)
+        self.root.after(500, self.start_round)
     
     def show_final(self):
         # Display final score
@@ -141,6 +152,7 @@ class Auditory:
         self.message_label.delete("1.0", tk.END)
         self.message_label.insert(tk.END, f"Final Score: {self.score}\n Press R to Restart", "center")
         self.message_label.configure(state="disabled")
+        self.Block += 1
         self.accept_restart = True   
     
     def process_input(self, user_said_yes):
@@ -153,6 +165,7 @@ class Auditory:
         if (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word):
             self.score += 1
 
+        #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
     
     def restart_game(self, restart):
@@ -163,6 +176,7 @@ class Auditory:
         self.round_number = 0
         self.countdown = 3
         self.score = 0
+        #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
         self.start_screen() 
 
@@ -174,6 +188,7 @@ class Auditory:
         self.round_number = 0
         self.countdown = 3
         self.score = 0
+        #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
         self.count()
             
