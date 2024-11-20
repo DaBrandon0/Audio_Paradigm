@@ -115,11 +115,9 @@ class Auditory:
             if rand <= 25:
                 while(self.rand_voice == self.rand_word):
                     self.rand_word = random.choice(self.voices)
-                self.accept_input = True
                 play_audio(self.rand_voice, self.rand_word)
             else: 
                 self.countdown = 0
-                self.accept_input = True
                 play_audio(self.rand_voice, self.rand_word)
             self.root.after(1500, self.promt)
         else:
@@ -130,7 +128,7 @@ class Auditory:
         self.message_label.delete("1.0", "end")
         self.message_label.insert("end", "Matched?", "center")
         self.message_label.config(state="disabled")
-        self.root.after(1250, self.show_blank)
+        self.accept_input = True
 
     def show_blank(self):
         if(self.accept_input):
@@ -167,6 +165,7 @@ class Auditory:
 
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
+        self.root.after(50, self.show_blank)
     
     def restart_game(self, restart):
         # Restart the game
@@ -179,6 +178,7 @@ class Auditory:
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
         self.start_screen() 
+        
 
     def start_game(self, start):
         # Start the game
