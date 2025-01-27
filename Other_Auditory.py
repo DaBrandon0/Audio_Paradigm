@@ -3,6 +3,7 @@ import random
 import os
 from playsound import playsound
 import threading
+from loop_software_trigger_init import sendTiD
 
 BLOCKS = 13
 
@@ -12,6 +13,7 @@ def play_audio(voice, word):
         file_name = f"{voice}_{word}.mp3"
         base_path = os.path.join(os.path.dirname(__file__), "Voices")
         file_path = os.path.join("Voices", file_name)
+        sendTiD(1000)  # Event ID for sound start
         playsound(file_path)
     
     audio_thread = threading.Thread(target=play)
@@ -82,6 +84,7 @@ class Auditory:
     
     def start_screen(self):
         if self.Block < BLOCKS:
+            sendTiD(7000 + self.Block)  # Event ID 7000 + Block number for unique identification
             self.ROUNDS = 30
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
@@ -128,6 +131,7 @@ class Auditory:
         self.message_label.delete("1.0", "end")
         self.message_label.insert("end", "Matched?", "center")
         self.message_label.config(state="disabled")
+        sendTiD(2000)  # Event ID for prompt display
         self.accept_input = True
 
     def show_blank(self):
@@ -160,7 +164,14 @@ class Auditory:
 
         self.accept_input = False
 
-        if (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word):
+        correct = (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word):
+        
+        if correct:
+            sendTiD(3000)  # Event ID for correct response
+        else:
+            sendTiD(4000)  # Event ID for incorrect response
+
+        if correct:
             self.score += 1
 
         #self.score_label.config(text=f"Score: {self.score}")
@@ -177,6 +188,7 @@ class Auditory:
         self.score = 0
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
+        sendTiD(6000)  # Event ID for game restart, this might not be needed
         self.start_screen() 
         
 
