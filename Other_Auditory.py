@@ -5,6 +5,23 @@ from playsound import playsound
 import threading
 from loop_software_trigger_init import sendTiD
 
+ """
+ 
+7000 + block number: Marks the start of a new block.
+8000 + block number: Marks the end of the current block.
+
+5000 + round number: Marks the start of a new round within a block.
+
+3001: Stimulus is a match (text and color are the same).
+3002: Stimulus is a mismatch (text and color are different).
+
+4001: User correctly identified a match.
+4002: User correctly identified a mismatch.
+
+5001: User incorrectly identified a match as a mismatch.
+5002: User incorrectly identified a mismatch as a match.
+"""
+
 BLOCKS = 13
 
 def play_audio(voice, word):
@@ -13,7 +30,7 @@ def play_audio(voice, word):
         file_name = f"{voice}_{word}.mp3"
         base_path = os.path.join(os.path.dirname(__file__), "Voices")
         file_path = os.path.join("Voices", file_name)
-        sendTiD(1000)  # Event ID for sound start
+        sendTiD(3001 if voice == word else 3002)
         playsound(file_path)
     
     audio_thread = threading.Thread(target=play)
@@ -84,7 +101,7 @@ class Auditory:
     
     def start_screen(self):
         if self.Block < BLOCKS:
-            sendTiD(7000 + self.Block)  # Event ID 7000 + Block number for unique identification
+            sendTiD(7000 + self.Block)  # Event ID for block start
             self.ROUNDS = 30
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
@@ -107,6 +124,7 @@ class Auditory:
     
     def start_round(self):
         if self.round_number < self.ROUNDS:
+            sendTiD(5000 + self.round_number)  # Event ID for round start
             self.message_label.configure(state="normal")
             self.message_label.delete("1.0", tk.END)
             self.message_label.insert(tk.END, f"Listen", "center")
@@ -150,6 +168,7 @@ class Auditory:
     
     def show_final(self):
         # Display final score
+        sendTiD(8000 + self.Block)  # Event ID for block end
         self.message_label.configure(state="normal")
         self.message_label.delete("1.0", tk.END)
         self.message_label.insert(tk.END, f"Final Score: {self.score}\n Press R to Restart", "center")
@@ -167,9 +186,15 @@ class Auditory:
         correct = (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word):
         
         if correct:
-            sendTiD(3000)  # Event ID for correct response
+            if self.rand_voice == self.rand_word:
+                sendTiD(4001)  # Correct with Match
+            else:
+                sendTiD(4002)  # Correct with Mismatch
         else:
-            sendTiD(4000)  # Event ID for incorrect response
+            if self.rand_voice == self.rand_word:
+                sendTiD(5001)  # Incorrect with Match
+            else:
+                sendTiD(5002)  # Incorrect with Mismatch
 
         if correct:
             self.score += 1
