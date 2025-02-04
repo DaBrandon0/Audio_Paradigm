@@ -4,19 +4,65 @@ import os
 from playsound import playsound
 import threading
 
+import socket
+from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
+import threading
+
+"""
+ 
+7000 + block number: Marks the start of a new block.
+8000 + block number: Marks the end of the current block.
+
+5000 + round number: Marks the start of a new round within a block.
+
+3001: Stimulus is a match (text and color are the same).
+3002: Stimulus is a mismatch (text and color are different).
+
+4001: User correctly identified a match.
+4002: User correctly identified a mismatch.
+
+5001: User incorrectly identified a match as a mismatch.
+5002: User incorrectly identified a mismatch as a match.
+"""
+
+# Setup UDP
+udp_marker = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+ip = '127.0.0.1'
+port = 12345
+
+# Set up LSL stream
+info = StreamInfo('NBackMarkers', 'Markers', 1, 0, 'string', 'visual_nback_task_001')
+outlet = StreamOutlet(info)
+
 BLOCKS = 13
 
-def play_audio(voice, word):
-    # Play the audio file
-    def play():
-        file_name = f"{voice}_{word}.mp3"
-        base_path = os.path.join(os.path.dirname(__file__), "Voices")
-        file_path = os.path.join("Voices", file_name)
-        playsound(file_path)
-    
-    audio_thread = threading.Thread(target=play)
-    audio_thread.start()
+
 class Auditory:
+    # Function to send a UDP message dynamically
+    def play_audio(self, voice, word):
+        """ Play the audio file asynchronously in a new thread """
+        def play():
+            file_name = f"{voice}_{word}.mp3"
+            base_path = os.path.join(os.path.dirname(__file__), "Voices")  # Absolute path
+            file_path = os.path.abspath(os.path.join(base_path, file_name))  # Ensure correct format
+
+            # Send marker
+            self.sendTiD("StimulusMatch" if voice == word else "StimulusMismatch")
+
+            try:
+                playsound(file_path)
+            except Exception as e:
+                print(f"Error playing sound: {e}")  # Debugging output
+
+        audio_thread = threading.Thread(target=play)
+        audio_thread.start()
+
+
+    def sendTiD(self, base_message):
+        message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
+        udp_marker.sendto(message.encode('utf-8'), (ip, port))
+        print(f"Sent UDP message: {message}")
+
     def __init__(self, root):
         self.root = root
         self.ROUNDS = 30
@@ -82,6 +128,7 @@ class Auditory:
     
     def start_screen(self):
         if self.Block < BLOCKS:
+            self.sendTiD("NewBlock")  # Event ID for block start
             self.ROUNDS = 30
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
@@ -104,6 +151,7 @@ class Auditory:
     
     def start_round(self):
         if self.round_number < self.ROUNDS:
+            self.sendTiD("NewRound")  # Event ID for round start
             self.message_label.configure(state="normal")
             self.message_label.delete("1.0", tk.END)
             self.message_label.insert(tk.END, f"Listen", "center")
@@ -115,10 +163,10 @@ class Auditory:
             if rand <= 25:
                 while(self.rand_voice == self.rand_word):
                     self.rand_word = random.choice(self.voices)
-                play_audio(self.rand_voice, self.rand_word)
+                self.play_audio(self.rand_voice, self.rand_word)
             else: 
                 self.countdown = 0
-                play_audio(self.rand_voice, self.rand_word)
+                self.play_audio(self.rand_voice, self.rand_word)
             self.root.after(1500, self.promt)
         else:
             self.show_final()
@@ -128,6 +176,7 @@ class Auditory:
         self.message_label.delete("1.0", "end")
         self.message_label.insert("end", "Matched?", "center")
         self.message_label.config(state="disabled")
+        self.sendTiD("PromptDisplayed")  # Event ID for prompt display
         self.accept_input = True
 
     def show_blank(self):
@@ -146,6 +195,7 @@ class Auditory:
     
     def show_final(self):
         # Display final score
+        self.sendTiD("EndofBlock")  # Event ID for block end
         self.message_label.configure(state="normal")
         self.message_label.delete("1.0", tk.END)
         self.message_label.insert(tk.END, f"Final Score: {self.score}\n Press R to Restart", "center")
@@ -160,7 +210,20 @@ class Auditory:
 
         self.accept_input = False
 
-        if (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word):
+        correct = (user_said_yes and self.rand_voice == self.rand_word) or (not user_said_yes and self.rand_voice != self.rand_word)
+        
+        if correct:
+            if self.rand_voice == self.rand_word:
+                self.sendTiD("CorrectMatch")  # Correct with Match
+            else:
+                self.sendTiD("CorrectMismatch")  # Correct with Mismatch
+        else:
+            if self.rand_voice == self.rand_word:
+                self.sendTiD("IncorrectMatch")  # Incorrect with Match
+            else:
+                self.sendTiD("IncorrectMismatch")  # Incorrect with Mismatch
+
+        if correct:
             self.score += 1
 
         #self.score_label.config(text=f"Score: {self.score}")
@@ -177,6 +240,7 @@ class Auditory:
         self.score = 0
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
+        self.sendTiD("GameRestart")  # Event ID for game restart, this might not be needed
         self.start_screen() 
         
 
