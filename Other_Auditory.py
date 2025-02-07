@@ -1,12 +1,16 @@
 import tkinter as tk
+#import tkFont
 import random 
 import os
-from playsound import playsound
+#from playsound import playsound
 import threading
+from tkinter import font
+import subprocess
 
 import socket
-from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
+#from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
 import threading
+
 
 """
  
@@ -39,6 +43,10 @@ BLOCKS = 13
 
 class Auditory:
     # Function to send a UDP message dynamically
+
+    def play_sound(self, filename):
+        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename])
+
     def play_audio(self, voice, word):
         """ Play the audio file asynchronously in a new thread """
         def play():
@@ -50,8 +58,9 @@ class Auditory:
             self.sendTiD("3001" if voice == word else "3002")
 
             try:
-                playsound(file_path)
+                self.play_sound(file_path)
                 self.sendTiD("3011" if voice == word else "3012")
+                #print("Sound played successfully")  # Debugging output
             except Exception as e:
                 print(f"Error playing sound: {e}")  # Debugging output
 
@@ -63,7 +72,7 @@ class Auditory:
         message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
         message = base_message
         udp_marker.sendto(message.encode('utf-8'), (ip, port))
-        print(f"Sent UDP message: {message}")
+        #print(f"Sent UDP message: {message}")
 
     def __init__(self, root):
         self.root = root
@@ -94,9 +103,9 @@ class Auditory:
         # Set up the Text widget for message display
         self.message_label = tk.Text(
             root, 
-            height=5, 
-            width=20, 
-            font=("Arial", 50), 
+            height=3, 
+            width=50, 
+            font=("gothic", 100), 
             wrap="word", 
             bg="#D9D9D9", 
             relief="flat", 
