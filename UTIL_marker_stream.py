@@ -4,7 +4,7 @@ import threading
 import time
 
 # Define marker values to be sent
-possible_marker_values = [0, 100, 200]
+possible_marker_values = [3001, 3002, 4001, 4002, 5001, 5002, 6000, 7000, 8000]
 
 print(f"Possible marker values: {possible_marker_values}")
 
