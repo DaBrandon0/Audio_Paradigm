@@ -51,6 +51,7 @@ class Auditory:
 
             try:
                 playsound(file_path)
+                self.sendTiD("3011" if voice == word else "3012")
             except Exception as e:
                 print(f"Error playing sound: {e}")  # Debugging output
 
@@ -95,17 +96,19 @@ class Auditory:
             root, 
             height=5, 
             width=20, 
-            font=("Arial", 100), 
+            font=("Arial", 50), 
             wrap="word", 
-            bg="#F0F0F0", 
+            bg="#D9D9D9", 
             relief="flat", 
-            bd=0
+            bd=0,
+            highlightthickness=0
         )
         self.message_label.tag_configure("center", justify="center")
-        self.message_label.place(relx=0.5, rely=0.7, anchor="center")
+        self.message_label.place(relx=0.5, rely=0, anchor="center")
+        self.message_label.pack(expand=True)
 
         self.score_label = tk.Label(root, text=f"Score: {self.score}", font=("Arial", 16))
-        self.score_label.place(relx=0.5, rely=0.90, anchor="center")
+        self.score_label.place(relx=0.5, rely=0.95, anchor="center")
 
         # Key event listeners
         self.root.bind("<KeyPress-y>", lambda event: self.process_input(True))
