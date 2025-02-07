@@ -47,7 +47,7 @@ class Auditory:
             file_path = os.path.abspath(os.path.join(base_path, file_name))  # Ensure correct format
 
             # Send marker
-            self.sendTiD("StimulusMatch" if voice == word else "StimulusMismatch")
+            self.sendTiD("3001" if voice == word else "3002")
 
             try:
                 playsound(file_path)
@@ -60,6 +60,7 @@ class Auditory:
 
     def sendTiD(self, base_message):
         message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
+        message = base_message
         udp_marker.sendto(message.encode('utf-8'), (ip, port))
         print(f"Sent UDP message: {message}")
 
@@ -128,7 +129,7 @@ class Auditory:
     
     def start_screen(self):
         if self.Block < BLOCKS:
-            self.sendTiD("NewBlock")  # Event ID for block start
+            self.sendTiD("7000")  # Event ID for block start
             self.ROUNDS = 30
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
@@ -151,7 +152,7 @@ class Auditory:
     
     def start_round(self):
         if self.round_number < self.ROUNDS:
-            self.sendTiD("NewRound")  # Event ID for round start
+            self.sendTiD("6000")  # Event ID for round start
             self.message_label.configure(state="normal")
             self.message_label.delete("1.0", tk.END)
             self.message_label.insert(tk.END, f"Listen", "center")
@@ -176,7 +177,7 @@ class Auditory:
         self.message_label.delete("1.0", "end")
         self.message_label.insert("end", "Matched?", "center")
         self.message_label.config(state="disabled")
-        self.sendTiD("PromptDisplayed")  # Event ID for prompt display
+        #self.sendTiD("PromptDisplayed")  # Event ID for prompt display
         self.accept_input = True
 
     def show_blank(self):
@@ -195,7 +196,7 @@ class Auditory:
     
     def show_final(self):
         # Display final score
-        self.sendTiD("EndofBlock")  # Event ID for block end
+        self.sendTiD("8000")  # Event ID for block end
         self.message_label.configure(state="normal")
         self.message_label.delete("1.0", tk.END)
         self.message_label.insert(tk.END, f"Final Score: {self.score}\n Press R to Restart", "center")
@@ -214,14 +215,14 @@ class Auditory:
         
         if correct:
             if self.rand_voice == self.rand_word:
-                self.sendTiD("CorrectMatch")  # Correct with Match
+                self.sendTiD("4001")  # Correct with Match
             else:
-                self.sendTiD("CorrectMismatch")  # Correct with Mismatch
+                self.sendTiD("4002")  # Correct with Mismatch
         else:
             if self.rand_voice == self.rand_word:
-                self.sendTiD("IncorrectMatch")  # Incorrect with Match
+                self.sendTiD("5001")  # Incorrect with Match
             else:
-                self.sendTiD("IncorrectMismatch")  # Incorrect with Mismatch
+                self.sendTiD("5002")  # Incorrect with Mismatch
 
         if correct:
             self.score += 1
@@ -240,7 +241,6 @@ class Auditory:
         self.score = 0
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
-        self.sendTiD("GameRestart")  # Event ID for game restart, this might not be needed
         self.start_screen() 
         
 
