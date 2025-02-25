@@ -2,13 +2,14 @@ import tkinter as tk
 #import tkFont
 import random 
 import os
-#from playsound import playsound
+from playsound import playsound
 import threading
 from tkinter import font
 import subprocess
+import simpleaudio as sa
 
 import socket
-#from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
+from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
 import threading
 
 
@@ -45,21 +46,52 @@ class Auditory:
     # Function to send a UDP message dynamically
 
     def play_sound(self, filename):
-        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename])
+        #playsound(filename) #USe this for windows
+        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
+        '''
+        subprocess.run([
+            "ffplay", "-nodisp", "-autoexit", filename,
+            "-af", "volume=1.0,aresample=high_quality",  # Improve resampling quality
+            "-ac", "2",  # Force stereo output
+            "-ar", "44100",  # Set sample rate to 44.1kHz (CD quality)
+            "-bufsize", "500k"  # Increase buffer size to reduce stuttering
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        '''
+        '''
+        subprocess.run([
+        "ffplay", "-nodisp", "-autoexit", filename,
+        "-af", "aresample=resampler=soxr",  # High-quality resampling
+        "-bufsize", "1000k",  # Increase buffer size to reduce stuttering
+        "-ar", "48000",  # Ensure playback at 48,000 Hz
+        "-ac", "2"  # Force stereo output
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        '''
+        '''
+        try:
+            wave_obj = sa.WaveObject.from_wave_file(filename)
+            play_obj = wave_obj.play()
+            play_obj.wait_done()  # Wait for playback to finish
+        except Exception as e:
+            print(f"Error playing sound: {e}")
+        '''
+
+
 
     def play_audio(self, voice, word):
         """ Play the audio file asynchronously in a new thread """
         def play():
-            file_name = f"{voice}_{word}.mp3"
-            base_path = os.path.join(os.path.dirname(__file__), "Voices")  # Absolute path
+            file_name = f"{voice}_{word}.wav"
+            base_path = os.path.join(os.path.dirname(__file__), "WAVVoices")  # Absolute path
             file_path = os.path.abspath(os.path.join(base_path, file_name))  # Ensure correct format
-
+            print(file_path)
             # Send marker
             self.sendTiD("3001" if voice == word else "3002")
 
             try:
                 self.play_sound(file_path)
                 self.sendTiD("3011" if voice == word else "3012")
+                self.accept_input = True
+                self.root.after(1000, self.show_blank)
                 #print("Sound played successfully")  # Debugging output
             except Exception as e:
                 print(f"Error playing sound: {e}")  # Debugging output
@@ -68,20 +100,26 @@ class Auditory:
         audio_thread.start()
 
 
+
     def sendTiD(self, base_message):
         message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
         message = base_message
         udp_marker.sendto(message.encode('utf-8'), (ip, port))
-        #print(f"Sent UDP message: {message}")
+        print(f"Sent UDP message: {message}")
 
     def __init__(self, root):
         self.root = root
-        self.ROUNDS = 30
+        self.ROUNDS = 31
         self.Block = 0
         self.root.title("Auditory Paradigm")
         self.voices = ["Man", "Woman", "Child", "Robot"]
         self.rand_voice = random.choice(self.voices)
         self.rand_word = random.choice(self.voices)
+
+        self.root.attributes("-fullscreen", True)  
+        self.root.bind("<Escape>", self.exit_fullscreen)  # Allow exiting fullscreen with ESC
+        self.root.bind("`", self.enter_fullscreen)  #Allow fullscreen with `
+
 
         # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()
@@ -126,23 +164,23 @@ class Auditory:
         self.root.bind("<KeyPress-space>", lambda event: self.start_game(True))
 
         # listen to asdf 
-        self.root.bind("<KeyPress-a>", lambda event: self.process_input(True))
-        self.root.bind("<KeyPress-s>", lambda event: self.process_input(True))
-        self.root.bind("<KeyPress-d>", lambda event: self.process_input(True))
-        self.root.bind("<KeyPress-f>", lambda event: self.process_input(True))
+        self.root.bind("<KeyPress-a>", lambda event: self.process_input(False))
+        self.root.bind("<KeyPress-s>", lambda event: self.process_input(False))
+        self.root.bind("<KeyPress-d>", lambda event: self.process_input(False))
+        self.root.bind("<KeyPress-f>", lambda event: self.process_input(False))
 
         # listen to jkl;
-        self.root.bind("<KeyPress-j>", lambda event: self.process_input(False))
-        self.root.bind("<KeyPress-k>", lambda event: self.process_input(False))
-        self.root.bind("<KeyPress-l>", lambda event: self.process_input(False))
-        self.root.bind("<KeyPress-semicolon>", lambda event: self.process_input(False))
+        self.root.bind("<KeyPress-j>", lambda event: self.process_input(True))
+        self.root.bind("<KeyPress-k>", lambda event: self.process_input(True))
+        self.root.bind("<KeyPress-l>", lambda event: self.process_input(True))
+        self.root.bind("<KeyPress-semicolon>", lambda event: self.process_input(True))
 
         self.start_screen()
     
     def start_screen(self):
         if self.Block < BLOCKS:
             self.sendTiD("7000")  # Event ID for block start
-            self.ROUNDS = 30
+            self.ROUNDS = 31
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
             self.message_label.insert("end", "Press SPACE to start", "center")
@@ -160,7 +198,7 @@ class Auditory:
             self.countdown -= 1
             self.root.after(1000, self.count)
         else:
-            self.start_round()
+            self.show_blank()
     
     def start_round(self):
         if self.round_number < self.ROUNDS:
@@ -180,31 +218,33 @@ class Auditory:
             else: 
                 self.countdown = 0
                 self.play_audio(self.rand_voice, self.rand_word)
-            self.root.after(1500, self.promt)
+            #self.root.after(2000, self.promt)
         else:
             self.show_final()
 
     def promt(self):
+        self.accept_input = True
         self.message_label.config(state="normal")
         self.message_label.delete("1.0", "end")
-        self.message_label.insert("end", "Matched?", "center")
+        self.message_label.insert("end", f"Listen", "center")
         self.message_label.config(state="disabled")
         #self.sendTiD("PromptDisplayed")  # Event ID for prompt display
-        self.accept_input = True
+        self.root.after(1500, self.show_blank)
 
     def show_blank(self):
+        self.accept_input = False
+        self.sendTiD("9000")  # Event ID for blank screen
         if(self.accept_input):
             self.ROUNDS += 1
-        self.accept_input = False
         self.round_number += 1
         self.message_label.configure(state="normal")
         self.message_label.delete("1.0", tk.END)
         self.message_label.configure(state="disabled")
 
-        #CHANGE THIS TO CHANGE THE BLANK TIME BETWEEN THE ROUNDS
-        possible_delay = [500, 750, 1000]
+        #Blank time between rounds
+        possible_delay = [2000]
         random_delay = random.choice(possible_delay)
-        self.root.after(500, self.start_round)
+        self.root.after(random_delay, self.start_round)
     
     def show_final(self):
         # Display final score
@@ -241,7 +281,6 @@ class Auditory:
 
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
-        self.root.after(50, self.show_blank)
     
     def restart_game(self, restart):
         # Restart the game
@@ -267,6 +306,13 @@ class Auditory:
         #self.score_label.config(text=f"Score: {self.score}")
         self.score_label.config(text=f"Score: {self.score}")
         self.count()
+    
+    def exit_fullscreen(self, event=None):  
+        self.root.attributes("-fullscreen", False)  # Disable fullscreen
+    
+    def enter_fullscreen(self, event=None):
+        self.root.attributes("-fullscreen", True)
+
             
 
 if __name__ == "__main__":
