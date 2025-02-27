@@ -6,22 +6,33 @@ from playsound import playsound
 import threading
 from tkinter import font
 import subprocess
-import simpleaudio as sa
+#import simpleaudio as sa
 
 import socket
 from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
 import threading
 
 
+
+import time
+import csv
+
+from datetime import datetime
+
+
+
 """
- 
-7000 + block number: Marks the start of a new block.
-8000 + block number: Marks the end of the current block.
+7000: Marks the start of a new block.
+8000: Marks the end of the current block.
+9000: Marks the start of a blank screen between rounds.
 
-5000 + round number: Marks the start of a new round within a block.
+5000: Marks the start of a new trial within a block.
 
-3001: Stimulus is a match (text and color are the same).
-3002: Stimulus is a mismatch (text and color are different).
+3001: Stimulus is a match (beginning of audio)
+3002: Stimulus is a mismatch (beginning of audio)
+
+3011: Stimulus is a match (end of audio)
+3012: Stimulus is a mismatch (end of audio)
 
 4001: User correctly identified a match.
 4002: User correctly identified a mismatch.
@@ -46,8 +57,8 @@ class Auditory:
     # Function to send a UDP message dynamically
 
     def play_sound(self, filename):
-        #playsound(filename) #USe this for windows
-        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
+        playsound(filename) #USe this for windows
+        #subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
         '''
         subprocess.run([
             "ffplay", "-nodisp", "-autoexit", filename,
@@ -102,12 +113,21 @@ class Auditory:
 
 
     def sendTiD(self, base_message):
-        message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
+        #message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
         message = base_message
         udp_marker.sendto(message.encode('utf-8'), (ip, port))
         print(f"Sent UDP message: {message}")
+        # Log the marker and timestamp to the CSV file
+        timestamp = datetime.now()
+        with open(self.results_file, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([timestamp, message])
 
     def __init__(self, root):
+
+        self.results_file = None
+        self.prepare_csv()
+
         self.root = root
         self.ROUNDS = 31
         self.Block = 0
@@ -120,6 +140,7 @@ class Auditory:
         self.root.bind("<Escape>", self.exit_fullscreen)  # Allow exiting fullscreen with ESC
         self.root.bind("`", self.enter_fullscreen)  #Allow fullscreen with `
 
+        self.root.configure(bg="#D9D9D9")
 
         # Get screen dimensions
         screen_width = self.root.winfo_screenwidth()
@@ -143,7 +164,7 @@ class Auditory:
             root, 
             height=3, 
             width=50, 
-            font=("gothic", 100), 
+            font=("Arial", 70), 
             wrap="word", 
             bg="#D9D9D9", 
             relief="flat", 
@@ -154,8 +175,9 @@ class Auditory:
         self.message_label.place(relx=0.5, rely=0, anchor="center")
         self.message_label.pack(expand=True)
 
-        self.score_label = tk.Label(root, text=f"Score: {self.score}", font=("Arial", 16))
+        self.score_label = tk.Label(root, text=f"Score: {self.score}", font=("Arial", 16), bg="#D9D9D9")
         self.score_label.place(relx=0.5, rely=0.95, anchor="center")
+        
 
         # Key event listeners
         self.root.bind("<KeyPress-y>", lambda event: self.process_input(True))
@@ -313,6 +335,13 @@ class Auditory:
     def enter_fullscreen(self, event=None):
         self.root.attributes("-fullscreen", True)
 
+    def prepare_csv(self):
+        # Prepare a new CSV file for the current block
+        filename = input("Enter the name for the CSV file (without extension): ") + ".csv"
+        self.results_file = filename
+        with open(self.results_file, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Time", "Marker"])
             
 
 if __name__ == "__main__":
