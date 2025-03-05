@@ -57,8 +57,8 @@ class Auditory:
     # Function to send a UDP message dynamically
 
     def play_sound(self, filename):
-        playsound(filename) #USe this for windows
-        #subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
+        # playsound(filename) #USe this for windows
+        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
         '''
         subprocess.run([
             "ffplay", "-nodisp", "-autoexit", filename,
@@ -110,26 +110,29 @@ class Auditory:
         audio_thread = threading.Thread(target=play)
         audio_thread.start()
 
-
+    def prepare_block_conditions(self):
+        self.block_conditions = [0] * 8 + [1] * 24  # 8 zeros and 24 ones
+        random.shuffle(self.block_conditions)  # Shuffle to randomize order
 
     def sendTiD(self, base_message):
         #message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
         message = base_message
         udp_marker.sendto(message.encode('utf-8'), (ip, port))
-        print(f"Sent UDP message: {message}")
+        # print(f"Sent UDP message: {message}")
+
         # Log the marker and timestamp to the CSV file
-        timestamp = datetime.now()
-        with open(self.results_file, mode="a", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow([timestamp, message])
+        # timestamp = datetime.now()
+        # with open(self.results_file, mode="a", newline="") as file:
+        #     writer = csv.writer(file)
+        #     writer.writerow([timestamp, message])
 
     def __init__(self, root):
 
         self.results_file = None
-        self.prepare_csv()
+        # self.prepare_csv()
 
         self.root = root
-        self.ROUNDS = 31
+        self.ROUNDS = 32
         self.Block = 0
         self.root.title("Auditory Paradigm")
         self.voices = ["Man", "Woman", "Child", "Robot"]
@@ -158,6 +161,7 @@ class Auditory:
         self.accept_restart = False
         self.accept_start = False
         self.round_number = 0
+        self.block_conditions = []
 
         # Set up the Text widget for message display
         self.message_label = tk.Text(
@@ -201,8 +205,8 @@ class Auditory:
     
     def start_screen(self):
         if self.Block < BLOCKS:
+            self.prepare_block_conditions()
             self.sendTiD("7000")  # Event ID for block start
-            self.ROUNDS = 31
             self.message_label.config(state="normal")
             self.message_label.delete("1.0", "end")
             self.message_label.insert("end", "Press SPACE to start", "center")
@@ -223,7 +227,8 @@ class Auditory:
             self.show_blank()
     
     def start_round(self):
-        if self.round_number < self.ROUNDS:
+        self.round_number += 1
+        if self.round_number <= self.ROUNDS:
             self.sendTiD("6000")  # Event ID for round start
             self.message_label.configure(state="normal")
             self.message_label.delete("1.0", tk.END)
@@ -232,8 +237,9 @@ class Auditory:
             rand = random.randint(1, 100)
             self.rand_voice = random.choice(self.voices)
             self.rand_word = self.rand_voice
+            tf_condition = self.block_conditions[self.round_number - 1]
             #Play correct word
-            if rand <= 25:
+            if tf_condition == 0:
                 while(self.rand_voice == self.rand_word):
                     self.rand_word = random.choice(self.voices)
                 self.play_audio(self.rand_voice, self.rand_word)
@@ -256,9 +262,6 @@ class Auditory:
     def show_blank(self):
         self.accept_input = False
         self.sendTiD("9000")  # Event ID for blank screen
-        if(self.accept_input):
-            self.ROUNDS += 1
-        self.round_number += 1
         self.message_label.configure(state="normal")
         self.message_label.delete("1.0", tk.END)
         self.message_label.configure(state="disabled")
