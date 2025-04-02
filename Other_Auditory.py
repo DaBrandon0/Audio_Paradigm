@@ -57,8 +57,9 @@ class Auditory:
     # Function to send a UDP message dynamically
 
     def play_sound(self, filename):
-        # playsound(filename) #USe this for windows
-        subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for WSL
+        playsound(filename) #USe this for windows
+        #subprocess.run(["ffplay", "-nodisp", "-autoexit", filename]) #use this for 
+        # subprocess.run(["ffplay", "-nodisp", "-autoexit", "-loglevel", "error", filename])
         '''
         subprocess.run([
             "ffplay", "-nodisp", "-autoexit", filename,
@@ -94,7 +95,7 @@ class Auditory:
             file_name = f"{voice}_{word}.wav"
             base_path = os.path.join(os.path.dirname(__file__), "WAVVoices")  # Absolute path
             file_path = os.path.abspath(os.path.join(base_path, file_name))  # Ensure correct format
-            print(file_path)
+            #print(file_path)
             # Send marker
             self.sendTiD("3001" if voice == word else "3002")
 
@@ -117,19 +118,19 @@ class Auditory:
     def sendTiD(self, base_message):
         #message = f"{base_message} - Block {self.Block}, Round {self.round_number}"
         message = base_message
-        udp_marker.sendto(message.encode('utf-8'), (ip, port))
+        #udp_marker.sendto(message.encode('utf-8'), (ip, port))
         # print(f"Sent UDP message: {message}")
 
         # Log the marker and timestamp to the CSV file
-        # timestamp = datetime.now()
-        # with open(self.results_file, mode="a", newline="") as file:
-        #     writer = csv.writer(file)
-        #     writer.writerow([timestamp, message])
+        timestamp = datetime.now()
+        with open(self.results_file, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([timestamp, message])
 
     def __init__(self, root):
 
         self.results_file = None
-        # self.prepare_csv()
+        self.prepare_csv()
 
         self.root = root
         self.ROUNDS = 32
